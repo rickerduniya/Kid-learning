@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AreaPill } from '../common/AreaPill';
 import { useAudio } from '../../hooks/useAudio';
-import { STORIES, type Story } from '../../data/syllabus';
+import { STORIES } from '../../data/syllabus';
 
 interface StoriesGameProps { onDone: (stars: number) => void; }
 

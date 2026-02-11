@@ -1,9 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AreaPill } from '../common/AreaPill';
-import { ProgressBar } from '../common/ProgressBar';
 import { useAudio } from '../../hooks/useAudio';
-import { RHYMES, type Rhyme } from '../../data/syllabus';
+import { RHYMES } from '../../data/syllabus';
 
 interface RhymesGameProps { onDone: (stars: number) => void; }
 
