@@ -10,6 +10,13 @@ interface GKGameProps { onDone: (stars: number) => void; }
 type Topic = 'fruits' | 'veggies' | 'days' | 'opposites' | 'habits';
 const TOPIC_LABELS: Record<Topic, string> = { fruits: '🍎 Fruits', veggies: '🥕 Vegetables', days: '📅 Days & Months', opposites: '↔️ Opposites', habits: '✅ Good Habits' };
 
+function shuffleBySeed<T>(arr: T[], seed: number): T[] {
+    return arr
+        .map((v, i) => ({ v, k: (seed * 9301 + i * 49297) % 233280 }))
+        .sort((a, b) => a.k - b.k)
+        .map(x => x.v);
+}
+
 export function GKGame({ onDone }: GKGameProps) {
     const { speak } = useAudio();
     const [topic, setTopic] = useState<Topic | null>(null);
@@ -62,12 +69,12 @@ export function GKGame({ onDone }: GKGameProps) {
 
 function ItemQuiz({ items, topic, color, round, totalRounds, stars, setStars, advance, onDone, onBack }: { items: SyllabusItem[]; topic: string; color: string; round: number; totalRounds: number; stars: number; setStars: (fn: (s: number) => number) => void; advance: () => void; onDone: (s: number) => void; onBack: () => void }) {
     const { speak } = useAudio();
-    const shuffled = useMemo(() => [...items].sort(() => Math.random() - 0.5), [items]);
+    const shuffled = useMemo(() => shuffleBySeed([...items], 101), [items]);
     const target = shuffled[round % shuffled.length];
     const choices = useMemo(() => {
-        const others = items.filter(i => i.id !== target.id).sort(() => Math.random() - 0.5).slice(0, 3);
-        return [...others, target].sort(() => Math.random() - 0.5);
-    }, [target, items]);
+        const others = shuffleBySeed(items.filter(i => i.id !== target.id), round + 11).slice(0, 3);
+        return shuffleBySeed([...others, target], round + 17);
+    }, [items, round, target]);
 
     useEffect(() => { speak(`Find the ${target.label}.`); }, [target, speak]);
 
@@ -102,14 +109,14 @@ function DaysMonthsQuiz({ round, totalRounds, stars, setStars, advance, onDone, 
     const { speak } = useAudio();
     const isDay = round % 2 === 0;
     const list = isDay ? DAYS : MONTHS;
-    const idx = Math.floor(Math.random() * (list.length - 1));
+    const idx = (round * 3 + (isDay ? 1 : 2)) % (list.length - 1);
     const target = list[idx];
     const after = list[idx + 1];
 
     const choices = useMemo(() => {
-        const others = list.filter(d => d !== after).sort(() => Math.random() - 0.5).slice(0, 2);
-        return [...others, after].sort(() => Math.random() - 0.5);
-    }, [after, list]);
+        const others = shuffleBySeed(list.filter(d => d !== after), round + 23).slice(0, 2);
+        return shuffleBySeed([...others, after], round + 29);
+    }, [after, list, round]);
 
     useEffect(() => { speak(`What comes after ${target}?`); }, [target, speak]);
 
@@ -143,9 +150,9 @@ function OppositesQuiz({ round, totalRounds, stars, setStars, advance, onDone, o
     const pair = OPPOSITES[round % OPPOSITES.length];
 
     const choices = useMemo(() => {
-        const others = OPPOSITES.filter(o => o.id !== pair.id).map(o => o.b).sort(() => Math.random() - 0.5).slice(0, 2);
-        return [...others, pair.b].sort(() => Math.random() - 0.5);
-    }, [pair]);
+        const others = shuffleBySeed(OPPOSITES.filter(o => o.id !== pair.id).map(o => o.b), round + 41).slice(0, 2);
+        return shuffleBySeed([...others, pair.b], round + 47);
+    }, [pair, round]);
 
     useEffect(() => { speak(`What is the opposite of ${pair.a}?`); }, [pair, speak]);
 

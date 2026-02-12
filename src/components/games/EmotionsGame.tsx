@@ -9,6 +9,13 @@ interface EmotionsGameProps { onDone: (stars: number) => void; }
 
 type Mode = 'identify' | 'scenario' | 'safety';
 
+function shuffleBySeed<T>(arr: T[], seed: number): T[] {
+    return arr
+        .map((v, i) => ({ v, k: (seed * 9301 + i * 49297) % 233280 }))
+        .sort((a, b) => a.k - b.k)
+        .map(x => x.v);
+}
+
 const SCENARIOS = [
     { text: 'Your friend shares their toy with you.', answer: 'happy', emoji: '🧸' },
     { text: 'You lost your favorite crayon.', answer: 'sad', emoji: '🖍️' },
@@ -27,22 +34,22 @@ export function EmotionsGame({ onDone }: EmotionsGameProps) {
     const [stars, setStars] = useState(0);
     const totalRounds = 6;
 
-    const shuffledEmotions = useMemo(() => [...EMOTIONS].sort(() => Math.random() - 0.5), []);
+    const shuffledEmotions = useMemo(() => shuffleBySeed([...EMOTIONS], 211), []);
     const target = shuffledEmotions[round % shuffledEmotions.length];
 
     const scenario = SCENARIOS[round % SCENARIOS.length];
     const safetyItem = SAFETY_RULES[round % SAFETY_RULES.length];
 
     const choices = useMemo(() => {
-        const others = EMOTIONS.filter(e => e.id !== target.id).sort(() => Math.random() - 0.5).slice(0, 3);
-        return [...others, target].sort(() => Math.random() - 0.5);
-    }, [target]);
+        const others = shuffleBySeed(EMOTIONS.filter(e => e.id !== target.id), round + 11).slice(0, 3);
+        return shuffleBySeed([...others, target], round + 17);
+    }, [round, target]);
 
     const scenarioChoices = useMemo(() => {
         const correct = EMOTIONS.find(e => e.id === scenario.answer)!;
-        const others = EMOTIONS.filter(e => e.id !== scenario.answer).sort(() => Math.random() - 0.5).slice(0, 3);
-        return [...others, correct].sort(() => Math.random() - 0.5);
-    }, [scenario]);
+        const others = shuffleBySeed(EMOTIONS.filter(e => e.id !== scenario.answer), round + 23).slice(0, 3);
+        return shuffleBySeed([...others, correct], round + 29);
+    }, [round, scenario]);
 
     useEffect(() => {
         if (mode === 'identify') speak(`Which emoji shows ${target.label}?`);

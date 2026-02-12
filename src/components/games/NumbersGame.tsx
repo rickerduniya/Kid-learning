@@ -11,6 +11,24 @@ type Mode = 'count' | 'name' | 'between';
 
 const EMOJIS = ['🍎', '⭐', '🌸', '🐟', '🎈', '🍪', '🦋', '🌻', '🐝', '🍬'];
 
+function shuffleBySeed<T>(arr: T[], seed: number): T[] {
+    return arr
+        .map((v, i) => ({ v, k: (seed * 9301 + i * 49297) % 233280 }))
+        .sort((a, b) => a.k - b.k)
+        .map(x => x.v);
+}
+
+function numberChoices(correct: number, seed: number, min: number, max: number, count: number) {
+    const opts = new Set<number>([correct]);
+    let i = 0;
+    while (opts.size < count && i < 100) {
+        const n = min + ((seed + i * 11) % (max - min + 1));
+        opts.add(n);
+        i++;
+    }
+    return shuffleBySeed([...opts], seed);
+}
+
 export function NumbersGame({ onDone }: NumbersGameProps) {
     const { speak } = useAudio();
     const [mode, setMode] = useState<Mode>('count');
@@ -18,15 +36,13 @@ export function NumbersGame({ onDone }: NumbersGameProps) {
     const [stars, setStars] = useState(0);
     const totalRounds = 6;
 
-    const countTarget = useMemo(() => Math.floor(Math.random() * 10) + 1, [round]);
-    const countEmoji = useMemo(() => EMOJIS[Math.floor(Math.random() * EMOJIS.length)], [round]);
+    const countTarget = useMemo(() => ((round * 7) % 10) + 1, [round]);
+    const countEmoji = useMemo(() => EMOJIS[(round * 3 + 5) % EMOJIS.length], [round]);
 
-    const nameTarget = useMemo(() => {
-        const keys = Object.keys(NUMBER_NAMES).map(Number);
-        return keys[Math.floor(Math.random() * keys.length)];
-    }, [round]);
+    const nameKeys = useMemo(() => Object.keys(NUMBER_NAMES).map(Number).sort((a, b) => a - b), []);
+    const nameTarget = useMemo(() => nameKeys[(round * 5 + 1) % nameKeys.length], [nameKeys, round]);
 
-    const betweenA = useMemo(() => Math.floor(Math.random() * 8) + 1, [round]);
+    const betweenA = useMemo(() => ((round * 3 + 1) % 8) + 1, [round]);
     const betweenC = betweenA + 2;
     const betweenAnswer = betweenA + 1;
 
@@ -48,23 +64,19 @@ export function NumbersGame({ onDone }: NumbersGameProps) {
     }
 
     const countChoices = useMemo(() => {
-        const opts = new Set([countTarget]);
-        while (opts.size < 4) opts.add(Math.floor(Math.random() * 10) + 1);
-        return [...opts].sort(() => Math.random() - 0.5);
-    }, [countTarget]);
+        return numberChoices(countTarget, round + 11, 1, 10, 4);
+    }, [countTarget, round]);
 
     const nameChoices = useMemo(() => {
         const correct = NUMBER_NAMES[nameTarget] || String(nameTarget);
         const allNames = Object.values(NUMBER_NAMES);
-        const others = allNames.filter(n => n !== correct).sort(() => Math.random() - 0.5).slice(0, 3);
-        return [...others, correct].sort(() => Math.random() - 0.5);
-    }, [nameTarget]);
+        const others = shuffleBySeed(allNames.filter(n => n !== correct), round + 23).slice(0, 3);
+        return shuffleBySeed([...others, correct], round + 29);
+    }, [nameTarget, round]);
 
     const betweenChoices = useMemo(() => {
-        const opts = new Set([betweenAnswer]);
-        while (opts.size < 4) opts.add(Math.floor(Math.random() * 10) + 1);
-        return [...opts].sort(() => Math.random() - 0.5);
-    }, [betweenAnswer]);
+        return numberChoices(betweenAnswer, round + 41, 1, 10, 4);
+    }, [betweenAnswer, round]);
 
     return (
         <div className="screen">

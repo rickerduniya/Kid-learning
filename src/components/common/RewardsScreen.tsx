@@ -1,6 +1,5 @@
 import { AreaPill } from '../common/AreaPill';
 import { useStore } from '../../store/useStore';
-import { formatMinutes } from '../../App'; // We might need to move utility functions
 import { type Area, AREAS } from '../../data/syllabus';
 
 interface RewardsScreenProps {
@@ -11,10 +10,17 @@ function areaTitle(area: Area) {
     return AREAS.find((a) => a.area === area)?.title ?? area;
 }
 
+function formatMinutes(seconds: number) {
+    const mins = Math.max(0, Math.floor(seconds / 60));
+    if (mins < 60) return `${mins} min`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h}h ${m}m`;
+}
 
 
 export function RewardsScreen({ onPrint }: RewardsScreenProps) {
-    const { stars, streak, badges, area } = useStore();
+    const { stars, streak, badges, stickers, area } = useStore();
 
     return (
         <div className="screen">
@@ -42,6 +48,19 @@ export function RewardsScreen({ onPrint }: RewardsScreenProps) {
                     badges.slice().reverse().map((b) => (
                         <div className="badge" key={b}>
                             {b}
+                        </div>
+                    ))
+                )}
+            </div>
+
+            <div className="sectionTitle">Stickers</div>
+            <div className="stickers">
+                {stickers.length === 0 ? (
+                    <div className="emptyCard">Finish levels to collect stickers.</div>
+                ) : (
+                    stickers.slice().reverse().map((s, i) => (
+                        <div className="sticker" key={`${s}-${i}`}>
+                            {s}
                         </div>
                     ))
                 )}

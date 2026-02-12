@@ -7,6 +7,7 @@ interface AppState {
     audioEnabled: boolean;
     stars: number;
     badges: string[];
+    stickers: string[];
     streak: { count: number; lastISO?: string };
     area: Record<Area, SubjectStats>;
     focusAreas: Area[];
@@ -17,6 +18,8 @@ interface AppState {
 
     toggleAudio: () => void;
     awardStars: (area: Area, starsToAdd: number) => void;
+    awardBadge: (badge: string) => void;
+    awardSticker: (sticker: string) => void;
     setDailyLimit: (minutes: number) => void;
     updateUsage: (seconds: number) => void;
     setParentPin: (salt: string, hash: string) => void;
@@ -47,13 +50,19 @@ function addBadge(currentBadges: string[], badge: string): string[] {
     return [...currentBadges, badge];
 }
 
+function addSticker(currentStickers: string[], sticker: string): string[] {
+    if (currentStickers.includes(sticker)) return currentStickers;
+    return [...currentStickers, sticker];
+}
+
 export const useStore = create<AppState>()(
     persist(
         (set) => ({
-            version: 2,
+            version: 3,
             audioEnabled: true,
             stars: 0,
             badges: [],
+            stickers: [],
             streak: { count: 0, lastISO: undefined },
             area: defaultAreaStats,
             focusAreas: ALL_AREAS,
@@ -106,6 +115,9 @@ export const useStore = create<AppState>()(
                 });
             },
 
+            awardBadge: (badge) => set((state) => ({ badges: addBadge(state.badges, badge) })),
+            awardSticker: (sticker) => set((state) => ({ stickers: addSticker(state.stickers, sticker) })),
+
             setDailyLimit: (minutes) => set({ dailyLimitMinutes: minutes }),
 
             updateUsage: (seconds) => {
@@ -154,6 +166,7 @@ export const useStore = create<AppState>()(
             resetProgress: () => set({
                 stars: 0,
                 badges: [],
+                stickers: [],
                 streak: { count: 0, lastISO: undefined },
                 area: defaultAreaStats,
                 usage: { dateISO: todayISODate(), seconds: 0 },
@@ -161,12 +174,13 @@ export const useStore = create<AppState>()(
             }),
         }),
         {
-            name: 'kg-learning-storage-v2',
+            name: 'kg-learning-storage-v3',
             partialize: (state) => ({
                 version: state.version,
                 audioEnabled: state.audioEnabled,
                 stars: state.stars,
                 badges: state.badges,
+                stickers: state.stickers,
                 streak: state.streak,
                 area: state.area,
                 focusAreas: state.focusAreas,

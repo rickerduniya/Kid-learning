@@ -1,4 +1,4 @@
-import type { Area } from './syllabus';
+import { ANIMALS, COLORS, CVC_WORDS, FRUITS, LETTERS, SHAPES, SIGHT_WORDS, type Area } from './syllabus';
 
 // ─── Types ─────────────────────────────────────────────────────────
 export interface MapQuestion {
@@ -20,7 +20,7 @@ export interface MapLevel {
     areaLabel: string; // human readable subject tag
     areaColor: string; // color badge
     questions: MapQuestion[];
-    reward: { stars: number };
+    reward: { stars: number; sticker?: string; badge?: string };
 }
 
 // Helper
@@ -29,7 +29,7 @@ function q(id: string, type: MapQuestion['type'], prompt: string, options: strin
 }
 
 // ─── Single Unified Adventure: 50 levels, mixed subjects ───────────
-export const CANDY_LEVELS: MapLevel[] = [
+const CANDY_LEVELS_BASE: MapLevel[] = [
     // ── Level 1: Letters ──
     {
         id: 'lv1', levelNum: 1, title: 'A B C', emoji: '🔤', area: 'letters', areaLabel: 'Letters', areaColor: '#FACC15',
@@ -812,4 +812,268 @@ export const CANDY_LEVELS: MapLevel[] = [
         ],
     },
 ];
+
+type ThemeId = 'festivals' | 'animals' | 'shapes' | 'bengal';
+
+const AREA_META: Record<Area, { label: string; color: string }> = {
+    letters: { label: 'Letters', color: '#FACC15' },
+    reading: { label: 'Reading', color: '#A855F7' },
+    numbers: { label: 'Numbers', color: '#84CC16' },
+    math: { label: 'Math', color: '#14B8A6' },
+    shapes: { label: 'Shapes', color: '#10B981' },
+    evs: { label: 'My World', color: '#3B82F6' },
+    stories: { label: 'Stories', color: '#FB923C' },
+    rhymes: { label: 'Rhymes', color: '#8B5CF6' },
+    art: { label: 'Art', color: '#EC4899' },
+    gk: { label: 'Smart Kids', color: '#06B6D4' },
+    emotions: { label: 'Feelings', color: '#2DD4BF' },
+};
+
+const THEME_META: Record<ThemeId, { title: string; emoji: string; sticker: string; badge: string }> = {
+    festivals: { title: 'Festivals & Fun', emoji: '🪔', sticker: '🎊', badge: '🪔 Festival Buddy' },
+    animals: { title: 'Animals & Nature', emoji: '🐯', sticker: '🦋', badge: '🐾 Animal Explorer' },
+    shapes: { title: 'Shapes & Patterns', emoji: '🔺', sticker: '⭐', badge: '🔷 Shape Star' },
+    bengal: { title: 'Bengal Adventure', emoji: '🌉', sticker: '🍬', badge: '🌉 Bengal Champ' },
+};
+
+function clampInt(n: number, min: number, max: number) {
+    return Math.max(min, Math.min(max, Math.floor(n)));
+}
+
+function pickFrom<T>(arr: T[], seed: number): T {
+    return arr[((seed % arr.length) + arr.length) % arr.length];
+}
+
+function shuffleBySeed<T>(arr: T[], seed: number): T[] {
+    return arr
+        .map((v, i) => ({ v, k: (seed * 9301 + i * 49297) % 233280 }))
+        .sort((a, b) => a.k - b.k)
+        .map(x => x.v);
+}
+
+function uniquePickFrom<T>(arr: T[], seed: number, count: number): T[] {
+    const out: T[] = [];
+    const used = new Set<number>();
+    let i = 0;
+    while (out.length < count && i < arr.length * 3) {
+        const idx = ((seed + i * 7) % arr.length + arr.length) % arr.length;
+        if (!used.has(idx)) {
+            used.add(idx);
+            out.push(arr[idx]);
+        }
+        i++;
+    }
+    return out.length >= count ? out : [...out, ...arr.slice(0, count - out.length)];
+}
+
+function repeatEmoji(emoji: string, n: number) {
+    return Array.from({ length: n }).map(() => emoji).join('');
+}
+
+function numberOptions(correct: number, seed: number, min: number, max: number, count: number) {
+    const opts = new Set<number>([correct]);
+    let i = 0;
+    while (opts.size < count && i < 80) {
+        const n = clampInt(min + ((seed + i * 11) % (max - min + 1)), min, max);
+        opts.add(n);
+        i++;
+    }
+    return shuffleBySeed([...opts].map(String), seed);
+}
+
+function textOptions(correct: string, pool: string[], seed: number, count: number) {
+    const opts = new Set<string>([correct]);
+    let i = 0;
+    while (opts.size < count && i < pool.length * 2) {
+        opts.add(pool[(seed + i * 5) % pool.length]);
+        i++;
+    }
+    return shuffleBySeed([...opts], seed);
+}
+
+function themeForLevel(levelNum: number): ThemeId {
+    if (levelNum <= 110) return 'animals';
+    if (levelNum <= 145) return 'shapes';
+    if (levelNum <= 175) return 'festivals';
+    return 'bengal';
+}
+
+function levelArea(levelNum: number): Area {
+    const cycle = ['letters', 'reading', 'numbers', 'math', 'shapes', 'evs'] as const;
+    return cycle[(levelNum - 1) % cycle.length];
+}
+
+function makeLettersQuestions(levelNum: number, theme: ThemeId): MapQuestion[] {
+    const l = pickFrom(LETTERS, levelNum * 3);
+    const next = pickFrom(LETTERS, levelNum * 3 + 1);
+    const choices = uniquePickFrom(LETTERS, levelNum * 9, 6).map(x => x.label);
+    const correct = next.label;
+    const opts = textOptions(correct, choices, levelNum, 4);
+    const phonicsCorrect = `${l.emoji} ${l.clue}`;
+    const phonicsOpts = textOptions(phonicsCorrect, uniquePickFrom(LETTERS, levelNum * 13, 5).map(x => `${x.emoji} ${x.clue}`), levelNum * 2, 3);
+    return [
+        q(`${levelNum}a`, 'pick-one', `${THEME_META[theme].emoji} Which letter comes after ${l.label}?`, opts, opts.indexOf(correct), `Yes! After ${l.label} is ${correct}.`, '🔤'),
+        q(`${levelNum}b`, 'pick-emoji', `${l.label} is for...?`, phonicsOpts, phonicsOpts.indexOf(phonicsCorrect), `${l.label} for ${l.clue}!`, l.emoji),
+        q(`${levelNum}c`, 'true-false', 'Letters help us read words.', ['True', 'False'], 0, 'Yes! Letters make words.'),
+    ];
+}
+
+function makeReadingQuestions(levelNum: number, theme: ThemeId): MapQuestion[] {
+    const cvc = pickFrom(CVC_WORDS, levelNum * 2);
+    const sight = pickFrom(SIGHT_WORDS, levelNum * 3);
+    const cvcPool = uniquePickFrom(CVC_WORDS, levelNum * 7, 6).map(w => w.label);
+    const cvcOpts = textOptions(cvc.label, cvcPool, levelNum, 4);
+    const sightPool = uniquePickFrom(SIGHT_WORDS, levelNum * 5, 7);
+    const sightOpts = textOptions(sight, sightPool, levelNum * 2, 4);
+    return [
+        q(`${levelNum}a`, 'pick-one', `${THEME_META[theme].emoji} Tap the word: ${sight}`, sightOpts, sightOpts.indexOf(sight), `Great! ${sight}.`, '👀'),
+        q(`${levelNum}b`, 'pick-one', `Which word matches the picture? ${cvc.emoji}`, cvcOpts, cvcOpts.indexOf(cvc.label), `Yes! ${cvc.label}.`, cvc.emoji),
+        q(`${levelNum}c`, 'true-false', 'We read from left to right.', ['True', 'False'], 0, 'Yes! Left to right.'),
+    ];
+}
+
+function makeNumbersQuestions(levelNum: number, theme: ThemeId): MapQuestion[] {
+    const max = levelNum < 120 ? 30 : 50;
+    const countTarget = clampInt((levelNum * 7) % max + 1, 1, max);
+    const itemEmoji = theme === 'animals' ? (pickFrom(ANIMALS, levelNum).emoji ?? '🐾') : theme === 'festivals' ? '🎈' : theme === 'shapes' ? '⭐' : '🍬';
+    const countOpts = numberOptions(countTarget, levelNum, Math.max(1, countTarget - 4), Math.min(max, countTarget + 4), 4);
+    const after = countTarget + 1 <= max ? countTarget + 1 : countTarget - 1;
+    const afterOpts = numberOptions(after, levelNum * 2, 1, max, 4);
+    const a = clampInt((levelNum * 3) % max + 1, 1, max);
+    const b = clampInt((levelNum * 5) % max + 1, 1, max);
+    const bigger = Math.max(a, b);
+    const biggerOpts = textOptions(String(bigger), [String(a), String(b), String(bigger), String(Math.min(a, b))], levelNum, 4);
+    return [
+        q(`${levelNum}a`, 'pick-one', `Count! ${repeatEmoji(itemEmoji, Math.min(countTarget, 12))}`, countOpts, countOpts.indexOf(String(countTarget)), `Yes! ${countTarget}.`, itemEmoji),
+        q(`${levelNum}b`, 'pick-one', `What comes after ${countTarget}?`, afterOpts, afterOpts.indexOf(String(after)), `After ${countTarget} is ${after}.`, '🔢'),
+        q(`${levelNum}c`, 'pick-one', `Which is bigger? ${a} or ${b}`, biggerOpts, biggerOpts.indexOf(String(bigger)), `${bigger} is bigger!`),
+    ];
+}
+
+function makeMathQuestions(levelNum: number, theme: ThemeId): MapQuestion[] {
+    const max = levelNum < 120 ? 20 : 50;
+    const x = clampInt((levelNum * 3) % max + 1, 1, max);
+    const y = clampInt((levelNum * 5) % max + 1, 1, max);
+    const addAns = x + y <= max ? x + y : max;
+    const addB = addAns - x;
+    const addOpts = numberOptions(addAns, levelNum, Math.max(0, addAns - 4), Math.min(max, addAns + 4), 4);
+
+    const subA = clampInt((levelNum * 7) % max + 4, 4, max);
+    const subB = clampInt((levelNum * 2) % Math.min(10, subA), 1, Math.min(10, subA));
+    const subAns = subA - subB;
+    const subOpts = numberOptions(subAns, levelNum * 2, Math.max(0, subAns - 4), Math.min(max, subAns + 4), 4);
+
+    const themeEmoji = theme === 'bengal' ? '🍬' : theme === 'festivals' ? '🪔' : theme === 'animals' ? (pickFrom(ANIMALS, levelNum).emoji ?? '🐯') : '🔺';
+    return [
+        q(`${levelNum}a`, 'pick-one', `${x} + ${addB} = ?`, addOpts, addOpts.indexOf(String(addAns)), `Great! ${addAns}.`, '➕'),
+        q(`${levelNum}b`, 'pick-one', `${subA} - ${subB} = ?`, subOpts, subOpts.indexOf(String(subAns)), `Nice! ${subAns}.`, '➖'),
+        q(`${levelNum}c`, 'pick-one', `Mina has ${x} ${themeEmoji}. She gives ${subB} away. How many left?`, subOpts, subOpts.indexOf(String(subAns)), `${x} - ${subB} = ${subAns}!`, themeEmoji),
+    ];
+}
+
+function makeShapesQuestions(levelNum: number, theme: ThemeId): MapQuestion[] {
+    const shape = pickFrom(SHAPES, levelNum * 2);
+    const color = pickFrom(COLORS, levelNum * 3);
+    const shapeChoices = uniquePickFrom(SHAPES, levelNum * 9, 6).map(s => `${s.emoji} ${s.label}`);
+    const shapeCorrect = `${shape.emoji} ${shape.label}`;
+    const shapeOpts = textOptions(shapeCorrect, shapeChoices, levelNum, 4);
+
+    const colorChoices = uniquePickFrom(COLORS, levelNum * 11, 6).map(c => `${c.emoji} ${c.label}`);
+    const colorCorrect = `${color.emoji} ${color.label}`;
+    const colorOpts = textOptions(colorCorrect, colorChoices, levelNum * 2, 4);
+
+    const themeHint = THEME_META[theme].emoji;
+    return [
+        q(`${levelNum}a`, 'pick-one', `${themeHint} Find the shape: ${shape.label}`, shapeOpts, shapeOpts.indexOf(shapeCorrect), `Yes! ${shape.label}.`, shape.emoji),
+        q(`${levelNum}b`, 'pick-one', `Find the color: ${color.label}`, colorOpts, colorOpts.indexOf(colorCorrect), `Yes! ${color.label}.`, color.emoji),
+        q(`${levelNum}c`, 'true-false', 'A circle has corners.', ['True', 'False'], 1, 'No corners. Circle is round. ⚫'),
+    ];
+}
+
+function makeEvsQuestions(levelNum: number, theme: ThemeId): MapQuestion[] {
+    if (theme === 'festivals') {
+        const prompts = [
+            { prompt: 'Which festival has pandals and Goddess Durga? 🪔', options: ['🪔 Durga Puja', '🎄 Christmas', '🎨 Holi'], answer: 0, expl: 'Durga Puja! 🪔' },
+            { prompt: 'Bengali New Year is called... 🌼', options: ['🌼 Poila Boishakh', '🎆 Diwali', '🪁 Makar Sankranti'], answer: 0, expl: 'Poila Boishakh! 🌼' },
+            { prompt: 'We worship Saraswati on... 📚', options: ['📚 Saraswati Puja', '🍪 Picnic', '🏏 Match'], answer: 0, expl: 'Saraswati Puja! 📚' },
+        ];
+        const item = pickFrom(prompts, levelNum);
+        return [
+            q(`${levelNum}a`, 'pick-one', item.prompt, item.options, item.answer, item.expl, '🎉'),
+            q(`${levelNum}b`, 'true-false', 'We should keep our area clean after festivals.', ['True', 'False'], 0, 'Yes! Clean is good. 🧹'),
+            q(`${levelNum}c`, 'pick-one', 'Which is a sweet from Bengal?', ['🍬 Rosogolla', '🍕 Pizza', '🌮 Taco'], 0, 'Rosogolla! 🍬'),
+        ];
+    }
+
+    if (theme === 'bengal') {
+        const places = ['🌉 Howrah Bridge', '🌿 Sundarbans', '⛰️ Darjeeling', '🏙️ Kolkata'];
+        const place = pickFrom(places, levelNum);
+        const placeOpts = textOptions(place, places, levelNum, 3);
+        return [
+            q(`${levelNum}a`, 'pick-one', 'Pick a place in West Bengal.', placeOpts, placeOpts.indexOf(place), `Yes! ${place}.`, '🌉'),
+            q(`${levelNum}b`, 'pick-one', 'Which animal is famous in Sundarbans?', ['🐅 Tiger', '🐧 Penguin', '🦒 Giraffe'], 0, 'Royal Bengal Tiger! 🐅'),
+            q(`${levelNum}c`, 'true-false', 'We say "Nomoshkar" to greet people.', ['True', 'False'], 0, 'Yes! Nomoshkar. 🙏'),
+        ];
+    }
+
+    if (theme === 'animals') {
+        const a = pickFrom(ANIMALS, levelNum * 2);
+        const opts = textOptions(`${a.emoji} ${a.label}`, uniquePickFrom(ANIMALS, levelNum * 3, 5).map(x => `${x.emoji} ${x.label}`), levelNum, 3);
+        return [
+            q(`${levelNum}a`, 'pick-one', `Which animal is this? ${a.emoji}`, opts, opts.indexOf(`${a.emoji} ${a.label}`), `Yes! ${a.label}.`, a.emoji),
+            q(`${levelNum}b`, 'true-false', 'Birds can fly in the sky.', ['True', 'False'], 0, 'Yes! Birds can fly. 🐦'),
+            q(`${levelNum}c`, 'pick-one', 'Where does a fish live?', ['💧 Water', '🌳 Tree', '🏠 House'], 0, 'Fish lives in water. 💧', '🐟'),
+        ];
+    }
+
+    const fruit = pickFrom(FRUITS, levelNum * 2);
+    const fruitCorrect = `${fruit.emoji} ${fruit.label}`;
+    const fruitOpts = textOptions(fruitCorrect, uniquePickFrom(FRUITS, levelNum, 5).map(x => `${x.emoji} ${x.label}`), levelNum, 3);
+    return [
+        q(`${levelNum}a`, 'pick-one', 'Which one is a fruit?', fruitOpts, fruitOpts.indexOf(fruitCorrect), `Yes! ${fruit.label}.`, fruit.emoji),
+        q(`${levelNum}b`, 'true-false', 'Fruits are healthy food.', ['True', 'False'], 0, 'Yes! Fruits are healthy.'),
+        q(`${levelNum}c`, 'pick-one', 'Which is a shape?', ['🔺 Triangle', '🐶 Dog', '🍎 Apple'], 0, 'Triangle is a shape! 🔺'),
+    ];
+}
+
+function titleForLevel(theme: ThemeId, area: Area) {
+    const t = THEME_META[theme];
+    const label = AREA_META[area]?.label ?? 'Fun';
+    return `${t.title}: ${label}`;
+}
+
+function questionsForLevel(levelNum: number, theme: ThemeId, area: Area) {
+    if (area === 'letters') return makeLettersQuestions(levelNum, theme);
+    if (area === 'reading') return makeReadingQuestions(levelNum, theme);
+    if (area === 'numbers') return makeNumbersQuestions(levelNum, theme);
+    if (area === 'math') return makeMathQuestions(levelNum, theme);
+    if (area === 'shapes') return makeShapesQuestions(levelNum, theme);
+    return makeEvsQuestions(levelNum, theme);
+}
+
+function buildCandyLevelsMore(fromLevelNum: number, toLevelNum: number): MapLevel[] {
+    const out: MapLevel[] = [];
+    for (let levelNum = fromLevelNum; levelNum <= toLevelNum; levelNum++) {
+        const theme = themeForLevel(levelNum);
+        const area = levelArea(levelNum);
+        const meta = AREA_META[area];
+        const t = THEME_META[theme];
+        const badgeMilestone = levelNum === 110 || levelNum === 145 || levelNum === 175 || levelNum === 200;
+        const stickerMilestone = levelNum % 5 === 0;
+        out.push({
+            id: `lv${levelNum}`,
+            levelNum,
+            title: titleForLevel(theme, area),
+            emoji: t.emoji,
+            area,
+            areaLabel: meta.label,
+            areaColor: meta.color,
+            questions: questionsForLevel(levelNum, theme, area),
+            reward: { stars: 1, sticker: stickerMilestone ? t.sticker : undefined, badge: badgeMilestone ? t.badge : undefined },
+        });
+    }
+    return out;
+}
+
+export const CANDY_LEVELS: MapLevel[] = [...CANDY_LEVELS_BASE, ...buildCandyLevelsMore(76, 200)];
 

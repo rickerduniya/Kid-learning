@@ -45,7 +45,7 @@ function detectEmotion(text: string): SpeechEmotion {
 
 // ─── Text preprocessing ────────────────────────────────────────────
 // Strip emoji so the browser doesn't read their Unicode names out loud
-const EMOJI_RE = /[\u{1F300}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu;
+const EMOJI_RE = /(?:\p{Extended_Pictographic}|\uFE0F|\u200D)/gu;
 
 function cleanTextForSpeech(text: string): string {
     return text
@@ -133,6 +133,7 @@ export function useAudio() {
     const utteranceQueue = useRef<SpeechSynthesisUtterance[]>([]);
     const isSpeaking = useRef(false);
     const onDoneRef = useRef<(() => void) | null>(null);
+    const sfxCtxRef = useRef<AudioContext | null>(null);
 
     // Ensure voices are loaded (Chrome loads them asynchronously)
     useEffect(() => {
@@ -152,7 +153,7 @@ export function useAudio() {
     }, []);
 
     // Process the utterance queue sequentially for natural sentence pauses
-    const processQueue = useCallback(() => {
+    const processQueue = useCallback(function runQueue() {
         if (isSpeaking.current) return;
         const next = utteranceQueue.current.shift();
         if (!next) {
@@ -170,15 +171,15 @@ export function useAudio() {
             isSpeaking.current = false;
             // Small pause between sentences for natural rhythm
             if (utteranceQueue.current.length > 0) {
-                setTimeout(() => processQueue(), 180);
+                setTimeout(runQueue, 180);
             } else {
                 // Last utterance done
-                processQueue(); // will trigger the onDoneRef callback
+                runQueue(); // will trigger the onDoneRef callback
             }
         };
         next.onerror = () => {
             isSpeaking.current = false;
-            processQueue();
+            runQueue();
         };
         window.speechSynthesis.speak(next);
     }, []);
@@ -241,5 +242,69 @@ export function useAudio() {
         }
     }, []);
 
-    return { speak, stop };
+    const playSfx = useCallback((name: 'tap' | 'correct' | 'wrong' | 'win' | 'badge' | 'page') => {
+        if (!audioEnabled) return;
+        if (typeof window === 'undefined') return;
+        const AudioContextCtor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AudioContextCtor) return;
+
+        if (!sfxCtxRef.current) sfxCtxRef.current = new AudioContextCtor();
+        const ctx = sfxCtxRef.current;
+        void ctx.resume?.();
+
+        const now = ctx.currentTime;
+        const master = ctx.createGain();
+        master.gain.setValueAtTime(0.0001, now);
+        master.gain.exponentialRampToValueAtTime(0.35, now + 0.01);
+        master.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+        master.connect(ctx.destination);
+
+        function tone(freq: number, start: number, dur: number, type: OscillatorType = 'sine', gain = 0.22) {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, start);
+            g.gain.setValueAtTime(0.0001, start);
+            g.gain.exponentialRampToValueAtTime(gain, start + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+            osc.connect(g);
+            g.connect(master);
+            osc.start(start);
+            osc.stop(start + dur + 0.02);
+        }
+
+        if (name === 'tap') {
+            tone(620, now, 0.08, 'triangle', 0.16);
+            return;
+        }
+        if (name === 'correct') {
+            tone(523.25, now, 0.12, 'sine', 0.2);
+            tone(659.25, now + 0.11, 0.16, 'sine', 0.22);
+            return;
+        }
+        if (name === 'wrong') {
+            tone(180, now, 0.18, 'square', 0.16);
+            tone(140, now + 0.12, 0.2, 'square', 0.12);
+            return;
+        }
+        if (name === 'badge') {
+            tone(880, now, 0.08, 'sine', 0.18);
+            tone(1174.66, now + 0.06, 0.1, 'sine', 0.16);
+            tone(1567.98, now + 0.12, 0.12, 'sine', 0.14);
+            return;
+        }
+        if (name === 'page') {
+            tone(420, now, 0.12, 'triangle', 0.14);
+            tone(520, now + 0.06, 0.14, 'triangle', 0.12);
+            return;
+        }
+        if (name === 'win') {
+            tone(523.25, now, 0.12, 'sine', 0.18);
+            tone(659.25, now + 0.1, 0.14, 'sine', 0.2);
+            tone(783.99, now + 0.22, 0.18, 'sine', 0.22);
+            tone(1046.5, now + 0.36, 0.22, 'sine', 0.24);
+        }
+    }, [audioEnabled]);
+
+    return { speak, stop, playSfx };
 }

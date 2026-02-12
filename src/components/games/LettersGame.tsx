@@ -9,6 +9,13 @@ interface LettersGameProps { onDone: (stars: number) => void; }
 
 type Mode = 'find' | 'phonics' | 'match';
 
+function shuffleBySeed<T>(arr: T[], seed: number): T[] {
+    return arr
+        .map((v, i) => ({ v, k: (seed * 9301 + i * 49297) % 233280 }))
+        .sort((a, b) => a.k - b.k)
+        .map(x => x.v);
+}
+
 export function LettersGame({ onDone }: LettersGameProps) {
     const { speak } = useAudio();
     const [mode, setMode] = useState<Mode>('find');
@@ -16,14 +23,14 @@ export function LettersGame({ onDone }: LettersGameProps) {
     const [stars, setStars] = useState(0);
     const totalRounds = 6;
 
-    const shuffled = useMemo(() => [...LETTERS].sort(() => Math.random() - 0.5), []);
+    const shuffled = useMemo(() => shuffleBySeed([...LETTERS], 131), []);
     const target = shuffled[round % shuffled.length];
 
     // Build 6 choices including target
     const choices = useMemo(() => {
-        const others = LETTERS.filter(l => l.id !== target.id).sort(() => Math.random() - 0.5).slice(0, 5);
-        return [...others, target].sort(() => Math.random() - 0.5);
-    }, [target]);
+        const others = shuffleBySeed(LETTERS.filter(l => l.id !== target.id), round + 11).slice(0, 5);
+        return shuffleBySeed([...others, target], round + 17);
+    }, [round, target]);
 
     const speakPrompt = useCallback(() => {
         if (mode === 'find') speak(`Find the letter ${target.label}.`);

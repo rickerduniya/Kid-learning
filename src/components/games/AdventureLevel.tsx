@@ -10,7 +10,7 @@ interface AdventureLevelProps {
 }
 
 export function AdventureLevel({ level, onComplete, onBack }: AdventureLevelProps) {
-    const { speak } = useAudio();
+    const { speak, playSfx } = useAudio();
     const [qIndex, setQIndex] = useState(0);
     const [stars, setStars] = useState(0);
     const [selected, setSelected] = useState<number | null>(null);
@@ -32,6 +32,7 @@ export function AdventureLevel({ level, onComplete, onBack }: AdventureLevelProp
 
         if (idx === question.correctIndex) {
             setShowResult('correct');
+            playSfx('correct');
             setStars(s => s + 1);
             await speak(question.explanation, 'cheerful');
             // Speech finished — now advance
@@ -44,6 +45,7 @@ export function AdventureLevel({ level, onComplete, onBack }: AdventureLevelProp
             }
         } else {
             setShowResult('wrong');
+            playSfx('wrong');
             await speak('Oops! Try again.', 'encouraging');
             setSelected(null);
             setShowResult(null);
@@ -59,6 +61,29 @@ export function AdventureLevel({ level, onComplete, onBack }: AdventureLevelProp
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: 'spring', stiffness: 200 }}>
                     <div className="levelCompleteEmoji">🎉</div>
+                    <motion.div
+                        className="levelConfetti"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.4 }}
+                    >
+                        {Array.from({ length: 14 }).map((_, i) => (
+                            <motion.span
+                                key={i}
+                                className="levelConfettiPiece"
+                                initial={{ y: -10, x: 0, rotate: 0, opacity: 0 }}
+                                animate={{
+                                    y: [0, 70 + (i % 5) * 10],
+                                    x: [-40 + (i % 7) * 12, -30 + (i % 9) * 10],
+                                    rotate: [0, (i % 2 ? 180 : -180)],
+                                    opacity: [0, 1, 0],
+                                }}
+                                transition={{ duration: 1.4, delay: 0.1 + i * 0.03, ease: 'easeOut' }}
+                            >
+                                {['🍬', '🍭', '🎊', '✨', '⭐', '🎈'][i % 6]}
+                            </motion.span>
+                        ))}
+                    </motion.div>
                     <h2 className="levelCompleteTitle">Level {level.levelNum} Complete!</h2>
                     <div className="levelCompleteStars">
                         {Array.from({ length: 3 }).map((_, i) => (
@@ -71,8 +96,14 @@ export function AdventureLevel({ level, onComplete, onBack }: AdventureLevelProp
                         ))}
                     </div>
                     <p className="levelCompleteScore">{stars}/{total} correct</p>
+                    {'sticker' in level.reward && level.reward.sticker && (
+                        <div className="levelCompleteSticker">
+                            <span className="levelCompleteStickerEmoji">{level.reward.sticker}</span>
+                            <span className="levelCompleteStickerText">New sticker!</span>
+                        </div>
+                    )}
                     <motion.button className="primary levelCompleteBtn"
-                        onClick={() => onComplete(earned)}
+                        onClick={() => { playSfx('win'); onComplete(earned); }}
                         whileTap={{ scale: 0.95 }}>
                         🗺️ Back to Map
                     </motion.button>

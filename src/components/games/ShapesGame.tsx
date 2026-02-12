@@ -9,6 +9,13 @@ interface ShapesGameProps { onDone: (stars: number) => void; }
 
 type Mode = 'shape' | 'color' | 'real';
 
+function shuffleBySeed<T>(arr: T[], seed: number): T[] {
+    return arr
+        .map((v, i) => ({ v, k: (seed * 9301 + i * 49297) % 233280 }))
+        .sort((a, b) => a.k - b.k)
+        .map(x => x.v);
+}
+
 export function ShapesGame({ onDone }: ShapesGameProps) {
     const { speak } = useAudio();
     const [mode, setMode] = useState<Mode>('shape');
@@ -16,21 +23,21 @@ export function ShapesGame({ onDone }: ShapesGameProps) {
     const [stars, setStars] = useState(0);
     const totalRounds = 6;
 
-    const shuffledShapes = useMemo(() => [...SHAPES].sort(() => Math.random() - 0.5), []);
-    const shuffledColors = useMemo(() => [...COLORS].sort(() => Math.random() - 0.5), []);
+    const shuffledShapes = useMemo(() => shuffleBySeed([...SHAPES], 121), []);
+    const shuffledColors = useMemo(() => shuffleBySeed([...COLORS], 303), []);
 
     const shapeTarget = shuffledShapes[round % shuffledShapes.length];
     const colorTarget = shuffledColors[round % shuffledColors.length];
 
     const shapeChoices = useMemo(() => {
-        const others = SHAPES.filter(s => s.id !== shapeTarget.id).sort(() => Math.random() - 0.5).slice(0, 3);
-        return [...others, shapeTarget].sort(() => Math.random() - 0.5);
-    }, [shapeTarget]);
+        const others = shuffleBySeed(SHAPES.filter(s => s.id !== shapeTarget.id), round + 11).slice(0, 3);
+        return shuffleBySeed([...others, shapeTarget], round + 17);
+    }, [round, shapeTarget]);
 
     const colorChoices = useMemo(() => {
-        const others = COLORS.filter(c => c.id !== colorTarget.id).sort(() => Math.random() - 0.5).slice(0, 3);
-        return [...others, colorTarget].sort(() => Math.random() - 0.5);
-    }, [colorTarget]);
+        const others = shuffleBySeed(COLORS.filter(c => c.id !== colorTarget.id), round + 23).slice(0, 3);
+        return shuffleBySeed([...others, colorTarget], round + 29);
+    }, [colorTarget, round]);
 
     const speakPrompt = useCallback(() => {
         if (mode === 'shape') speak(`Find the ${shapeTarget.label}.`);

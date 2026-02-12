@@ -11,14 +11,14 @@ interface AdventureMapProps {
 
 // Decorations scattered around
 const DECORATIONS = [
-    '🌳', '🌸', '☁️', '🌻', '🍄', '🦋', '🌈', '⭐', '🌺', '🍀',
-    '🏠', '☁️', '🌷', '�', '🐝', '🎈', '�', '🦋', '⭐', '🍄',
+    '🍬', '🍭', '🍫', '🧁', '🍪', '🍩', '🎈', '🌈', '✨', '⭐',
+    '🪁', '🪔', '🐯', '🐘', '🐟', '🥭', '🍌', '🍎', '🔺', '⚫',
 ];
 
-export function AdventureMap(_props: AdventureMapProps) {
-    const { speak } = useAudio();
+export function AdventureMap(props: AdventureMapProps) {
+    const { speak, playSfx } = useAudio();
     const [playingLevel, setPlayingLevel] = useState<MapLevel | null>(null);
-    const { adventureProgress, completeAdventureLevel, awardStars } = useStore();
+    const { adventureProgress, completeAdventureLevel, awardStars, awardSticker, awardBadge } = useStore();
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const progress = adventureProgress['candy'] || { completedLevels: [], levelStars: {} };
@@ -64,7 +64,16 @@ export function AdventureMap(_props: AdventureMapProps) {
         if (playingLevel) {
             completeAdventureLevel('candy', playingLevel.id, stars);
             awardStars(playingLevel.area, stars);
+            if ('sticker' in playingLevel.reward && playingLevel.reward.sticker) {
+                awardSticker(playingLevel.reward.sticker);
+                playSfx('badge');
+            }
+            if ('badge' in playingLevel.reward && playingLevel.reward.badge) {
+                awardBadge(playingLevel.reward.badge);
+                playSfx('badge');
+            }
             speak(`Amazing! You earned ${stars} stars!`, 'cheerful');
+            if (playingLevel.levelNum === totalLevels) props.onDone?.(stars);
             setPlayingLevel(null);
         }
     }

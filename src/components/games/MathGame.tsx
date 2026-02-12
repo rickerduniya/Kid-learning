@@ -9,6 +9,24 @@ interface MathGameProps { onDone: (stars: number) => void; }
 
 type Mode = 'add' | 'pattern' | 'compare';
 
+function shuffleBySeed<T>(arr: T[], seed: number): T[] {
+    return arr
+        .map((v, i) => ({ v, k: (seed * 9301 + i * 49297) % 233280 }))
+        .sort((a, b) => a.k - b.k)
+        .map(x => x.v);
+}
+
+function numberChoices(correct: number, seed: number, min: number, max: number, count: number) {
+    const opts = new Set<number>([correct]);
+    let i = 0;
+    while (opts.size < count && i < 120) {
+        const n = min + ((seed + i * 11) % (max - min + 1));
+        opts.add(n);
+        i++;
+    }
+    return shuffleBySeed([...opts], seed);
+}
+
 export function MathGame({ onDone }: MathGameProps) {
     const { speak } = useAudio();
     const [mode, setMode] = useState<Mode>('add');
@@ -20,12 +38,11 @@ export function MathGame({ onDone }: MathGameProps) {
     const problem = problems[round % problems.length];
     const patternItem = PATTERNS[round % PATTERNS.length];
 
-    const [compA] = useState(() => Math.floor(Math.random() * 9) + 1);
-    const [compB] = useState(() => {
-        let b = Math.floor(Math.random() * 9) + 1;
-        while (b === compA) b = Math.floor(Math.random() * 9) + 1;
-        return b;
-    });
+    const compA = useMemo(() => ((round * 3 + 2) % 9) + 1, [round]);
+    const compB = useMemo(() => {
+        const b = ((round * 5 + 4) % 9) + 1;
+        return b === compA ? (b % 9) + 1 : b;
+    }, [compA, round]);
 
     const speakPrompt = useCallback(() => {
         if (mode === 'add') {
@@ -41,10 +58,8 @@ export function MathGame({ onDone }: MathGameProps) {
     useEffect(() => { speakPrompt(); }, [speakPrompt]);
 
     const addChoices = useMemo(() => {
-        const opts = new Set([problem.answer]);
-        while (opts.size < 4) opts.add(Math.floor(Math.random() * 18) + 1);
-        return [...opts].sort(() => Math.random() - 0.5);
-    }, [problem]);
+        return numberChoices(problem.answer, round + 11, 0, 50, 4);
+    }, [problem.answer, round]);
 
     function advance() {
         if (round + 1 >= totalRounds) {

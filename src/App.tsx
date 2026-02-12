@@ -33,7 +33,7 @@ type Screen =
   | { name: 'worksheet'; area: Area }
   | { name: 'adventure' };
 
-export function formatMinutes(seconds: number) {
+function formatMinutes(seconds: number) {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   if (m <= 0) return `${s}s`;

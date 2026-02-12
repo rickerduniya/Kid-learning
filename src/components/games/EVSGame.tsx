@@ -11,6 +11,13 @@ type Topic = 'animals' | 'body' | 'seasons' | 'transport' | 'helpers' | 'plants'
 const TOPICS: Topic[] = ['animals', 'body', 'seasons', 'transport', 'helpers', 'plants', 'space'];
 const TOPIC_LABELS: Record<Topic, string> = { animals: '🐾 Animals', body: '🧍 Body Parts', seasons: '🌦️ Seasons', transport: '🚗 Transport', helpers: '👨‍⚕️ Helpers', plants: '🌱 Plants', space: '🚀 Space' };
 
+function shuffleBySeed<T>(arr: T[], seed: number): T[] {
+    return arr
+        .map((v, i) => ({ v, k: (seed * 9301 + i * 49297) % 233280 }))
+        .sort((a, b) => a.k - b.k)
+        .map(x => x.v);
+}
+
 function getTopicData(topic: Topic): SyllabusItem[] {
     switch (topic) {
         case 'animals': return ANIMALS;
@@ -30,15 +37,16 @@ export function EVSGame({ onDone }: EVSGameProps) {
     const [round, setRound] = useState(0);
     const [stars, setStars] = useState(0);
     const totalRounds = 5;
+    const topicSeed = TOPICS.indexOf(topic) + 1;
 
     const data = useMemo(() => getTopicData(topic), [topic]);
-    const shuffled = useMemo(() => [...data].sort(() => Math.random() - 0.5), [data]);
+    const shuffled = useMemo(() => shuffleBySeed([...data], topicSeed * 101), [data, topicSeed]);
     const target = shuffled[round % shuffled.length];
 
     const choices = useMemo(() => {
-        const others = data.filter(d => d.id !== target.id).sort(() => Math.random() - 0.5).slice(0, 3);
-        return [...others, target].sort(() => Math.random() - 0.5);
-    }, [target, data]);
+        const others = shuffleBySeed(data.filter(d => d.id !== target.id), topicSeed * 211 + round).slice(0, 3);
+        return shuffleBySeed([...others, target], topicSeed * 311 + round);
+    }, [data, round, target, topicSeed]);
 
     const speakPrompt = useCallback(() => {
         speak(target.audio || `Find the ${target.label}.`);

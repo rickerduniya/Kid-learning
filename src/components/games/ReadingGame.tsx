@@ -9,6 +9,13 @@ interface ReadingGameProps { onDone: (stars: number) => void; }
 
 type Mode = 'sight' | 'cvc' | 'vowel';
 
+function shuffleBySeed<T>(arr: T[], seed: number): T[] {
+    return arr
+        .map((v, i) => ({ v, k: (seed * 9301 + i * 49297) % 233280 }))
+        .sort((a, b) => a.k - b.k)
+        .map(x => x.v);
+}
+
 export function ReadingGame({ onDone }: ReadingGameProps) {
     const { speak } = useAudio();
     const [mode, setMode] = useState<Mode>('sight');
@@ -18,19 +25,19 @@ export function ReadingGame({ onDone }: ReadingGameProps) {
 
     // Sight words mode: pick the spoken word
     const sightWords = useMemo(() =>
-        [...SIGHT_WORDS].sort(() => Math.random() - 0.5).slice(0, 20), []);
+        shuffleBySeed([...SIGHT_WORDS], 101).slice(0, 20), []);
     const sightTarget = sightWords[round % sightWords.length];
     const sightChoices = useMemo(() => {
         const others = sightWords.filter(w => w !== sightTarget).slice(0, 3);
-        return [...others, sightTarget].sort(() => Math.random() - 0.5);
-    }, [sightTarget, sightWords]);
+        return shuffleBySeed([...others, sightTarget], round + 11);
+    }, [round, sightTarget, sightWords]);
 
     // CVC mode: spell the word
-    const cvcWords = useMemo(() => [...CVC_WORDS].sort(() => Math.random() - 0.5), []);
+    const cvcWords = useMemo(() => shuffleBySeed([...CVC_WORDS], 303), []);
     const cvcTarget = cvcWords[round % cvcWords.length];
 
     // Vowel/consonant sort
-    const allLetters = useMemo(() => [...VOWELS, ...CONSONANTS.slice(0, 5)].sort(() => Math.random() - 0.5), []);
+    const allLetters = useMemo(() => shuffleBySeed([...VOWELS, ...CONSONANTS.slice(0, 5)], 707), []);
     const sortTarget = allLetters[round % allLetters.length];
 
     const speakPrompt = useCallback(() => {
@@ -80,7 +87,7 @@ export function ReadingGame({ onDone }: ReadingGameProps) {
                 <div className="cvcDisplay">
                     <div className="cvcEmoji" style={{ fontSize: '4rem' }}>{cvcTarget.emoji}</div>
                     <div className="choiceGrid choiceGrid--3">
-                        {[cvcTarget.label, ...CVC_WORDS.filter(c => c.id !== cvcTarget.id).slice(0, 2).map(c => c.label)].sort(() => Math.random() - 0.5).map(w => (
+                        {shuffleBySeed([cvcTarget.label, ...CVC_WORDS.filter(c => c.id !== cvcTarget.id).slice(0, 2).map(c => c.label)], round + 31).map(w => (
                             <motion.button key={w} className="choiceBtn choiceBtn--word"
                                 onClick={() => {
                                     if (w === cvcTarget.label) { speak('Perfect!'); setStars(s => s + 1); advance(); }
