@@ -1,0 +1,77 @@
+:root {
+  /* Nano Banana Palette */
+  --color-banana-100: #FEF9C3;
+  --color-banana-300: #FDE047;
+  --color-banana-400: #FACC15;
+  --color-banana-500: #EAB308;
+  --color-banana-900: #713F12;
+
+  --color-background: #FFFBEB; /* Very light yellow/cream */
+  --color-surface: #FFFFFF;
+  --color-text: #451a03; /* Dark brown, softer than black */
+  --color-text-light: #78350f;
+
+  /* Playful Accents */
+  --color-primary: var(--color-banana-400);
+  --color-primary-dark: var(--color-banana-500);
+  --color-secondary: #84CC16; /* Lime */
+  --color-accent: #F472B6; /* Pink */
+  
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
+  
+  --font-heading: 'Nunito', 'Comic Sans MS', sans-serif;
+  --font-body: 'Varela Round', system-ui, sans-serif;
+  
+  --shadow-card: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-float: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, .appTitle, .heroTitle, .sectionTitle {
+  font-family: var(--font-heading);
+  color: var(--color-banana-900);
+}
+
+.pill {
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+/* Animations */
+@keyframes bounce-gentle {
+  0%, 100% { transform: translateY(-5%); }
+  50% { transform: translateY(0); }
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-pop {
+  animation: pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.interactive-hover {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.interactive-hover:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: var(--shadow-float);
+}
+
+.interactive-active:active {
+  transform: translateY(2px) scale(0.98);
+}
